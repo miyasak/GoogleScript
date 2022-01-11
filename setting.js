@@ -27,12 +27,6 @@ let tableObj = {};
 let requiredArray = [];
 
 /**
- * テーブル定義の項目名チェックフラグ
- * @type {boolean}
- */
-let tableCategoryFlag = false;
-
-/**
  * ハイパーリンクのセル指定に利用する変数
  * @type {string}
  */
@@ -40,8 +34,8 @@ let cellNotation = "";
 
 function Main() {
 
-    // テーブル定義の各シートデータを連想配列へ格納する
-    _pushTableData();
+    // テーブル定義のシートデータを連想配列として格納し、フォーマットが整合結果を返します
+    let tableCategoryFlag = _pushTableData();
 
     // テーブル情報を取得できていれば、後続処理を開始します
     if (tableCategoryFlag) {
@@ -66,12 +60,15 @@ function Main() {
             // 参照シートのカスタム関数セット完了したら、配列を空にします
             requiredArray = [];
         }
+    } else {
+        console.log("処理が失敗しました！項目の確認をお願いします。");
     }
 }
 
 /**
+ * @returns {boolean}
  * @private
- * テーブル定義のシートデータを連想配列として格納します
+ * テーブル定義のシートデータを連想配列として格納し、ヘッダーフォーマットの整合結果を返します
  * tableObjはグローバルオブジェクトです
  */
 function _pushTableData() {
@@ -79,44 +76,46 @@ function _pushTableData() {
     let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
     // スプレッドシートのシートを全て取得して、ループ。シート分処理を繰り返します
     for (let count = 0; count < sheets.length; count++) {
-        tableObj["sheetNum" + num] = {}; // シートNo(キー)
-        tableObj["sheetNum" + num]["sheetName"] = sheets[num].getName(); // シート名
-        let lastRow = sheets[num].getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow(); // 最終行を指定
+        tableObj["sheetNum" + count] = {}; // シートNo(キー)
+        tableObj["sheetNum" + count]["sheetName"] = sheets[count].getName(); // シート名
+        let lastRow = sheets[count].getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow(); // 最終行を指定
 
         // マスタシートA1にセットされているURLを取得します
-        let targetLink = sheets[num].getRange(1, 1).getRichTextValues();
-        tableObj["sheetNum" + num]["sheetLink"] = targetLink[0][0].getLinkUrl();
+        let targetLink = sheets[count].getRange(1, 1).getRichTextValues();
+        tableObj["sheetNum" + count]["sheetLink"] = targetLink[0][0].getLinkUrl();
 
         // 各データをキー配列として保持できるようにします
-        tableObj["sheetNum" + num]["cellData"] = {
+        tableObj["sheetNum" + count]["cellData"] = {
             field: [], // フィールド名
             type: [], // 種類
             mode: [], // モード
             description: [] // 説明
         };
 
-        let cellData = sheets[num].getRange(1, 1, lastRow, 4).getValues(); // A列〜D列の最終行を指定
-        // シートの最終行までループさせて、各項目を配列に追加します(スキーマは使わないので除外)
-        for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
-            // もし他の項目を追加する必要があるときは、引数に追加でセットします
-            if (tableCategoryFlag) {
-                // もし他の項目を追加する必要があるときは、引数に追加でセットします
-                tableObj["sheetNum" + num]["cellData"]["field"].push(cellData[sheetRow][0]);
-                tableObj["sheetNum" + num]["cellData"]["type"].push(cellData[sheetRow][1]);
-                tableObj["sheetNum" + num]["cellData"]["mode"].push(cellData[sheetRow][2]);
-                tableObj["sheetNum" + num]["cellData"]["description"].push(cellData[sheetRow][3]);
-            } else {
-                if ((sheetRow == 0) && (cellData[sheetRow][0] === FIELD_NAME) && (cellData[sheetRow][1] === FIELD_TYPE) && (cellData[sheetRow][2] === FIELD_MODE) && (cellData[sheetRow][3] === FIELD_DESCRIPTION)) {
-                    // テーブル定義が正しければ、連想配列へ格納できるようにフラグをtrueにします
-                    tableCategoryFlag = true;
-                } else {
-                    // フィールド名が誤っていた場合は、処理を終了します
-                    console.log("項目名が誤っています!!!");
-                    return;
+        let cellData = sheets[count].getRange(1, 1, lastRow, 4).getValues(); // A列〜D列の最終行を指定
+
+        var flag = (cellData, count) => {
+            // シートの最終行までループさせて、各項目を配列に追加します(スキーマは使わないので除外)
+            for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
+
+                if ((sheetRow == 0) && ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][3] !== FIELD_DESCRIPTION))) {
+                    return false;
                 }
+                // もし他の項目を追加する必要があるときは、引数に追加でセットします
+                tableObj["sheetNum" + count]["cellData"]["field"].push(cellData[sheetRow][0]);
+                tableObj["sheetNum" + count]["cellData"]["type"].push(cellData[sheetRow][1]);
+                tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]);
+                tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][3]);
             }
+            return true;
+        }
+        // ヘッダ項目名が異なっていた場合、falseを返します
+        if (!flag(cellData,count)) {
+            return false;
         }
     }
+    // 全て問題なければ、true
+    return true;
 }
 
 /**
