@@ -35,7 +35,7 @@ let cellNotation = "";
 function Main() {
 
     // テーブル定義のシートデータを連想配列として格納し、フォーマットが整合結果を返します
-    let tableCategoryFlag = _pushTableCategory();
+    let tableCategoryFlag = _tableCategory();
 
     // テーブル情報を取得できていれば、後続処理を開始します
     if (tableCategoryFlag) {
@@ -71,7 +71,7 @@ function Main() {
  * テーブル定義のカテゴリデータを連想配列として格納します
  * カテゴリ名が誤っていた場合、セットせずに処理を終了するようにfalseを返します
  */
-function _pushTableCategory() {
+function _tableCategory() {
 
     let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
     // スプレッドシートのシートを全て取得して、ループ。シート分処理を繰り返します
@@ -131,7 +131,7 @@ function _setRequiredData(key) {
     // C列のモードが"REQUIRED"となっているフィールドのみ、配列へセットし直します
     for (let reqCount = 0; reqCount < tableObj[key]["cellData"]["field"].length; reqCount++) {
         // もし他のモードを追加する必要があるときは、以下に"or"で条件を追加します
-        if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING")) {
+        if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING" || tableObj[key]["cellData"]["type"][reqCount] === "DATE")) {
             // もし他の項目を追加する必要があるときは、引数に追加でセットします
             requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
         }
@@ -255,7 +255,7 @@ function _setInputRule(cell, key, targetSheet, setting, header) {
     let inputRule = SpreadsheetApp.newDataValidation()
         // セットするカスタム数式
         .requireFormulaSatisfied(setting.rule.input[requiredArray[key][0]])
-        // 無効なデータの場合
+        // 無効なデータとしてセット
         .setAllowInvalid(false)
         .build();
     targetSheet.getRange(cellNotation + cell).setDataValidation(inputRule);
