@@ -35,7 +35,7 @@ let cellNotation = "";
 function Main() {
 
     // テーブル定義のシートデータを連想配列として格納し、フォーマットが整合結果を返します
-    let tableCategoryFlag = _pushTableData();
+    let tableCategoryFlag = _pushTableCategory();
 
     // テーブル情報を取得できていれば、後続処理を開始します
     if (tableCategoryFlag) {
@@ -61,35 +61,35 @@ function Main() {
             requiredArray = [];
         }
     } else {
-        console.log("処理が失敗しました！項目の確認をお願いします。");
+        console.log("処理が失敗しました！カテゴリ名が誤っている可能性があります。");
     }
 }
 
 /**
  * @returns {boolean}
  * @private
- * テーブル定義のシートデータを連想配列として格納し、ヘッダーフォーマットの整合結果を返します
- * tableObjはグローバルオブジェクトです
+ * テーブル定義のカテゴリデータを連想配列として格納します
+ * カテゴリ名が誤っていた場合、セットせずに処理を終了するようにfalseを返します
  */
-function _pushTableData() {
+function _pushTableCategory() {
 
     let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
     // スプレッドシートのシートを全て取得して、ループ。シート分処理を繰り返します
     for (let count = 0; count < sheets.length; count++) {
-        tableObj["sheetNum" + count] = {}; // シートNo(キー)
-        tableObj["sheetNum" + count]["sheetName"] = sheets[count].getName(); // シート名
+        tableObj["sheetNum" + count] = {}; // シートNo(キー)をセット
+        tableObj["sheetNum" + count]["sheetName"] = sheets[count].getName(); // シート名をセット
         let lastRow = sheets[count].getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow(); // 最終行を指定
 
         // マスタシートA1にセットされているURLを取得します
         let targetLink = sheets[count].getRange(1, 1).getRichTextValues();
-        tableObj["sheetNum" + count]["sheetLink"] = targetLink[0][0].getLinkUrl();
+        tableObj["sheetNum" + count]["sheetLink"] = targetLink[0][0].getLinkUrl(); // シートURLをセット
 
         // 各データをキー配列として保持できるようにします
         tableObj["sheetNum" + count]["cellData"] = {
-            field: [], // フィールド名
-            type: [], // 種類
-            mode: [], // モード
-            description: [] // 説明
+            field: [], // フィールド名をセット
+            type: [], // 種類をセット
+            mode: [], // モードをセット
+            description: [] // 説明をセット
         };
 
         let cellData = sheets[count].getRange(1, 1, lastRow, 4).getValues(); // A列〜D列の最終行を指定
@@ -98,6 +98,7 @@ function _pushTableData() {
             // シートの最終行までループさせて、各項目を配列に追加します(スキーマは使わないので除外)
             for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
 
+                // カテゴリ名がデフォルト定義と異なっていた場合、処理を終了するためfalseを返します
                 if ((sheetRow == 0) && ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][3] !== FIELD_DESCRIPTION))) {
                     return false;
                 }
@@ -107,14 +108,15 @@ function _pushTableData() {
                 tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]);
                 tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][3]);
             }
+            // 最終行まで処理完了したらtrueを返し、次シートを処理します
             return true;
         }
-        // ヘッダ項目名が異なっていた場合、falseを返します
+        // カテゴリ名が異なっていた場合、falseを返し処理を終了します
         if (!flag(cellData,count)) {
             return false;
         }
     }
-    // 全て問題なければ、true
+    // 全て処理完了したら、trueを返します
     return true;
 }
 
@@ -134,8 +136,8 @@ function _setRequiredData(key) {
             requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
         }
     }
-    requiredArray.push(['DATE','作成日時','REQUIRED']);
-    requiredArray.push(['DATE','更新日時','REQUIRED']);
+    requiredArray.push(CREATE_DATE);
+    requiredArray.push(UPDATE_DATE);
     // console.log(requiredArray);
 }
 
