@@ -92,21 +92,21 @@ function _tableCategory() {
             description: [] // 説明をセット
         };
 
-        let cellData = sheets[count].getRange(1, 1, lastRow, 4).getValues(); // A列〜D列の最終行を指定
+        let cellData = sheets[count].getRange(1, 1, lastRow, 5).getValues(); // A列〜D列の最終行を指定
 
         var flag = (cellData, count) => {
-            // シートの最終行までループさせて、各項目を配列に追加します(スキーマは使わないので除外)
+            // シートの最終行までループさせて、各項目を配列に追加します(ポリシータグ、スキーマは使わないので除外)
             for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
 
                 // カテゴリ名がデフォルト定義と異なっていた場合、処理を終了するためfalseを返します
-                if ((sheetRow == 0) && ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][3] !== FIELD_DESCRIPTION))) {
+                if ((sheetRow == 0) && ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][4] !== FIELD_DESCRIPTION))) {
                     return false;
                 }
                 // もし他の項目を追加する必要があるときは、引数に追加でセットします
-                tableObj["sheetNum" + count]["cellData"]["field"].push(cellData[sheetRow][0]);
-                tableObj["sheetNum" + count]["cellData"]["type"].push(cellData[sheetRow][1]);
-                tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]);
-                tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][3]);
+                tableObj["sheetNum" + count]["cellData"]["field"].push(cellData[sheetRow][0]); // フィールド名
+                tableObj["sheetNum" + count]["cellData"]["type"].push(cellData[sheetRow][1]); // 種類
+                tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]); // モード
+                tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][4]); // 説明
             }
             // 最終行まで処理完了したらtrueを返し、次シートを処理します
             return true;
