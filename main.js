@@ -65,8 +65,7 @@ function _tableCategory() {
 
     let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
     // スプレッドシートのシートを全て取得して、ループ。シート分処理を繰り返します
-//    for (let count = 0; count < sheets.length; count++) {
-    for (let count = 0; count < 2; count++) {
+    for (let count = 0; count < sheets.length; count++) {
 
         tableObj["sheetNum" + count] = {}; // シートNo(キー)をセット
         tableObj["sheetNum" + count]["sheetName"] = sheets[count].getName(); // シート名をセット
