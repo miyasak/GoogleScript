@@ -1,15 +1,3 @@
-/**
- * Whats this?
- * BigQueryからデータをスプレッドシート(以下、参照先スプレッドシート)のうち、必須項目に対してデータ入力規則と入力規則をセットします
- *
- * !!!caution!!!
- * 各シートのA1セルには、参照先スプレッドシートのリンクを埋め込んでください!!
- * 各シートのヘッダはA列：フィールド名、B列：種類、C列：モード、D列：説明の順にセットしてください!!
- * 参照先スプレッドシートにセットする入力書式もしくはデータ入力規則のカスタム関数を変更する場合は、settingオブジェクトの値を書き換えてください!!
- * モード指定を変更する場合は、TARGET_MODEの変数名を書き換えてください。(複数のモードには未対応です)
- * 参照先スプレッドシートの一番左のシートにBigQueryから連携するデータをセットしてください。
- */
-
 // グローバル変数
 
 /**
@@ -35,24 +23,22 @@ let cellNotation = "";
 function Main() {
 
     // テーブル定義のシートデータを連想配列として格納し、フォーマットが整合結果を返します
-    let tableCategoryFlag = _tableCategory();
+    _tableCategory();
 
-    // テーブル情報を取得できていれば、後続処理を開始します
-    if (tableCategoryFlag) {
+    for (let key in tableObj) {
 
-        for (let key in tableObj) {
+        // 全テーブルデータのうち、REQUIREDモードのフィールドだけを抽出し直します
+        _setRequiredData(key);
 
-            // 全テーブルデータのうち、REQUIREDモードのフィールドだけを抽出し直します
-            _setRequiredData(key);
-
+        if (tableObj[key]) {
             // 参照先スプレッドシートの一番左のシートを参照します
             let targetSheet = _getReferenceSheet();
 
             // 参照先スプレッドシートの最終行、最終列をそれぞれ取得します
             let targetRange = _getSheetRange(targetSheet);
             // 参照先スプレッドシートの最終行
-            let lastRow = targetRange[0];
             // 参照先スプレッドシートの最終列
+            let lastRow = targetRange[0];
             let lastColumn = targetRange[1];
 
             // 参照先スプレッドシートの必須項目列に対して、入力書式と入力規則をそれぞれセットします
@@ -60,11 +46,15 @@ function Main() {
             // 参照シートのカスタム関数セット完了したら、配列を空にします
             requiredArray = [];
         }
-    } else {
-        console.log("処理が失敗しました！カテゴリ名が誤っている可能性があります。");
     }
 }
 
+/**
+ * @returns {boolean}
+ * @private
+ * テーブル定義のカテゴリデータを連想配列として格納します
+ * カテゴリ名が誤っていた場合、セットせずに処理を終了するようにfalseを返します
+ */
 /**
  * @returns {boolean}
  * @private
@@ -75,14 +65,12 @@ function _tableCategory() {
 
     let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
     // スプレッドシートのシートを全て取得して、ループ。シート分処理を繰り返します
-    for (let count = 0; count < sheets.length; count++) {
+//    for (let count = 0; count < sheets.length; count++) {
+    for (let count = 0; count < 2; count++) {
+
         tableObj["sheetNum" + count] = {}; // シートNo(キー)をセット
         tableObj["sheetNum" + count]["sheetName"] = sheets[count].getName(); // シート名をセット
         let lastRow = sheets[count].getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow(); // 最終行を指定
-
-        // マスタシートA1にセットされているURLを取得します
-        let targetLink = sheets[count].getRange(1, 1).getRichTextValues();
-        tableObj["sheetNum" + count]["sheetLink"] = targetLink[0][0].getLinkUrl(); // シートURLをセット
 
         // 各データをキー配列として保持できるようにします
         tableObj["sheetNum" + count]["cellData"] = {
@@ -94,30 +82,32 @@ function _tableCategory() {
 
         let cellData = sheets[count].getRange(1, 1, lastRow, 5).getValues(); // A列〜D列の最終行を指定
 
-        var flag = (cellData, count) => {
-            // シートの最終行までループさせて、各項目を配列に追加します(ポリシータグ、スキーマは使わないので除外)
-            for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
+        // シートの最終行までループさせて、各項目を配列に追加します(ポリシータグ、スキーマは使わないので除外)
+        for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
 
-                // カテゴリ名がデフォルト定義と異なっていた場合、処理を終了するためfalseを返します
-                if ((sheetRow == 0) && ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][4] !== FIELD_DESCRIPTION))) {
-                    return false;
+
+            if (sheetRow == 0) {
+                if ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][4] !== FIELD_DESCRIPTION)) {
+                    // カテゴリ名がデフォルト定義と異なっていた場合は処理をスキップするためデータ格納せずにループを抜けます
+                    tableObj["sheetNum" + count]["error"] = "カテゴリ名が異なっています";
+                    break;
                 }
-                // もし他の項目を追加する必要があるときは、引数に追加でセットします
-                tableObj["sheetNum" + count]["cellData"]["field"].push(cellData[sheetRow][0]); // フィールド名
-                tableObj["sheetNum" + count]["cellData"]["type"].push(cellData[sheetRow][1]); // 種類
-                tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]); // モード
-                tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][4]); // 説明
+                let targetLink = sheets[count].getRange(1, 1).getRichTextValues();
+                if (targetLink[0][0].getLinkUrl()) {
+                    tableObj["sheetNum" + count]["sheetLink"] = targetLink[0][0].getLinkUrl();
+                } else {
+                    // セルA1にURLがセットされていなかった場合は処理をスキップするためデータ格納せずにループを抜けます
+                    tableObj["sheetNum" + count]["error"] = "セルA1にURLがセットされていません";
+                    break;
+                }
             }
-            // 最終行まで処理完了したらtrueを返し、次シートを処理します
-            return true;
-        }
-        // カテゴリ名が異なっていた場合、falseを返し処理を終了します
-        if (!flag(cellData,count)) {
-            return false;
+            // もし他の項目を追加する必要があるときは、引数に追加でセットします
+            tableObj["sheetNum" + count]["cellData"]["field"].push(cellData[sheetRow][0]); // フィールド名
+            tableObj["sheetNum" + count]["cellData"]["type"].push(cellData[sheetRow][1]); // 種類
+            tableObj["sheetNum" + count]["cellData"]["mode"].push(cellData[sheetRow][2]); // モード
+            tableObj["sheetNum" + count]["cellData"]["description"].push(cellData[sheetRow][4]); // 説明
         }
     }
-    // 全て処理完了したら、trueを返します
-    return true;
 }
 
 /**
@@ -127,18 +117,24 @@ function _tableCategory() {
  */
 function _setRequiredData(key) {
     // スプレッドシートのシートIDを取得します
-    requiredArray.push(tableObj[key]["sheetLink"].split("/")[5]);
-    // C列のモードが"REQUIRED"となっているフィールドのみ、配列へセットし直します
-    for (let reqCount = 0; reqCount < tableObj[key]["cellData"]["field"].length; reqCount++) {
-        // もし他のモードを追加する必要があるときは、以下に"or"で条件を追加します
-        if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING" || tableObj[key]["cellData"]["type"][reqCount] === "DATE")) {
-            // もし他の項目を追加する必要があるときは、引数に追加でセットします
-            requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
+    try {
+        // URLがセットされていなければここでエラーになります
+        requiredArray.push(tableObj[key]["sheetLink"].split("/")[5]);
+        // C列のモードが"REQUIRED"となっているフィールドのみ、配列へセットし直します
+        for (let reqCount = 0; reqCount < tableObj[key]["cellData"]["field"].length; reqCount++) {
+            // もし他のモードを追加する必要があるときは、以下に"or"で条件を追加します
+            if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING" || tableObj[key]["cellData"]["type"][reqCount] === "DATE")) {
+                // もし他の項目を追加する必要があるときは、引数に追加でセットします
+                requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
+            }
         }
+        requiredArray.push(CREATE_DATE); // 作成日時を追加
+        requiredArray.push(UPDATE_DATE); // 更新日時を追加
+    } catch (e) {
+        // エラーになった場合は、処理スキップとなるので、メッセージの表示と、オブジェクトからキーを削除します
+        console.log("シート名：" + tableObj[key]["sheetName"] + "のデータが不足しています。処理をスキップしました。【ERROR】：" + tableObj[key]["error"]);
+        delete tableObj[key];
     }
-    requiredArray.push(CREATE_DATE);
-    requiredArray.push(UPDATE_DATE);
-    // console.log(requiredArray);
 }
 
 /**
