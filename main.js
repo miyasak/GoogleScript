@@ -20,7 +20,7 @@ let requiredArray = [];
  */
 let cellNotation = "";
 
-function Main() {
+function main() {
 
     // テーブル定義のシートデータを連想配列として格納し、フォーマットが整合結果を返します
     _tableCategory();
@@ -35,11 +35,7 @@ function Main() {
             let targetSheet = _getReferenceSheet();
 
             // 参照先スプレッドシートの最終行、最終列をそれぞれ取得します
-            let targetRange = _getSheetRange(targetSheet);
-            // 参照先スプレッドシートの最終行
-            // 参照先スプレッドシートの最終列
-            let lastRow = targetRange[0];
-            let lastColumn = targetRange[1];
+            let {lastRow, lastColumn} = _getSheetRange(targetSheet);
 
             // 参照先スプレッドシートの必須項目列に対して、入力書式と入力規則をそれぞれセットします
             _setCustomFunction(lastRow, lastColumn, targetSheet);
@@ -84,7 +80,7 @@ function _tableCategory() {
         // シートの最終行までループさせて、各項目を配列に追加します(ポリシータグ、スキーマは使わないので除外)
         for (let sheetRow = 0; sheetRow < cellData.length; sheetRow++) {
 
-
+            // 初回ループ時にカテゴリ名とURL取得の判定を行います
             if (sheetRow == 0) {
                 if ((cellData[sheetRow][0] !== FIELD_NAME) || (cellData[sheetRow][1] !== FIELD_TYPE) || (cellData[sheetRow][2] !== FIELD_MODE) || (cellData[sheetRow][4] !== FIELD_DESCRIPTION)) {
                     // カテゴリ名がデフォルト定義と異なっていた場合は処理をスキップするためデータ格納せずにループを抜けます
@@ -118,22 +114,24 @@ function _setRequiredData(key) {
     // スプレッドシートのシートIDを取得します
     try {
         // URLがセットされていなければここでエラーになります
+        console.log(tableObj[key]["sheetLink"]);
         requiredArray.push(tableObj[key]["sheetLink"].split("/")[5]);
-        // C列のモードが"REQUIRED"となっているフィールドのみ、配列へセットし直します
-        for (let reqCount = 0; reqCount < tableObj[key]["cellData"]["field"].length; reqCount++) {
-            // もし他のモードを追加する必要があるときは、以下に"or"で条件を追加します
-            if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING" || tableObj[key]["cellData"]["type"][reqCount] === "DATE")) {
-                // もし他の項目を追加する必要があるときは、引数に追加でセットします
-                requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
-            }
-        }
-        requiredArray.push(CREATE_DATE); // 作成日時を追加
-        requiredArray.push(UPDATE_DATE); // 更新日時を追加
     } catch (e) {
         // エラーになった場合は、処理スキップとなるので、メッセージの表示と、オブジェクトからキーを削除します
         console.log("シート名：" + tableObj[key]["sheetName"] + "のデータが不足しています。処理をスキップしました。【ERROR】：" + tableObj[key]["error"]);
         delete tableObj[key];
+        return false;
     }
+    // C列のモードが"REQUIRED"となっているフィールドのみ、配列へセットし直します
+    for (let reqCount = 0; reqCount < tableObj[key]["cellData"]["field"].length; reqCount++) {
+        // もし他のモードを追加する必要があるときは、以下に"or"で条件を追加します
+        if ((tableObj[key]["cellData"]["mode"][reqCount] === TARGET_MODE) && (tableObj[key]["cellData"]["type"][reqCount] === "INTEGER" || tableObj[key]["cellData"]["type"][reqCount] === "STRING" || tableObj[key]["cellData"]["type"][reqCount] === "DATE")) {
+            // もし他の項目を追加する必要があるときは、引数に追加でセットします
+            requiredArray.push([tableObj[key]["cellData"]["type"][reqCount], tableObj[key]["cellData"]["description"][reqCount], tableObj[key]["cellData"]["mode"][reqCount]]);
+        }
+    }
+    requiredArray.push(CREATE_DATE); // 作成日時を追加
+    requiredArray.push(UPDATE_DATE); // 更新日時を追加
 }
 
 /**
@@ -149,13 +147,14 @@ function _getReferenceSheet() {
 
 /**
  * 参照先スプレッドシートの最終行、最終列をそれぞれ取得します
- * @returns {*[]}
+ * @param targetSheet
+ * @returns {{lastRow: *, lastColumn: *}}
  * @private
  */
 function _getSheetRange(targetSheet) {
-    var row = targetSheet.getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow();
-    var column = targetSheet.getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.NEXT).getColumn();
-    return [row, column];
+    let lastRow = targetSheet.getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow();
+    let lastColumn = targetSheet.getRange(1, 1).getNextDataCell(SpreadsheetApp.Direction.NEXT).getColumn();
+    return {lastRow, lastColumn}; // 最終行、最終列を返す
 }
 
 /**
