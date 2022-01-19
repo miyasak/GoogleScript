@@ -114,7 +114,6 @@ function _setRequiredData(key) {
     // スプレッドシートのシートIDを取得します
     try {
         // URLがセットされていなければここでエラーになります
-        console.log(tableObj[key]["sheetLink"]);
         requiredArray.push(tableObj[key]["sheetLink"].split("/")[5]);
     } catch (e) {
         // エラーになった場合は、処理スキップとなるので、メッセージの表示と、オブジェクトからキーを削除します
